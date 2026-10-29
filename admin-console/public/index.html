@@ -232,7 +232,7 @@
       }
       .runtime-grid {
         display: grid;
-        grid-template-columns: 0.9fr 1.1fr;
+        grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
         gap: 16px;
         margin-top: 16px;
       }
@@ -244,11 +244,13 @@
       .compact-list {
         display: grid;
         gap: 8px;
-        max-height: 250px;
-        overflow: auto;
+        min-width: 0;
       }
       .compact-item {
         display: flex;
+        flex-wrap: wrap;
+        min-width: 0;
+        overflow-wrap: anywhere;
         align-items: center;
         justify-content: space-between;
         gap: 10px;
@@ -256,6 +258,9 @@
         border-radius: 8px;
         background: rgba(255, 255, 255, 0.74);
         padding: 10px 12px;
+      }
+      .compact-item > * {
+        min-width: 0;
       }
       .compact-item strong {
         display: block;
