@@ -307,13 +307,22 @@ async function saveFeatures() {
     setStatus("featureSaveStatus", "No feature changes to save.", "default");
     return;
   }
+  const inputs = Array.from(document.querySelectorAll("#featureToggleList input[data-config-key]"));
+  const disabledStates = inputs.map((input) => input.disabled);
+  const button = $("saveFeaturesButton");
+  inputs.forEach((input) => { input.disabled = true; });
+  if (button) button.disabled = true;
   setStatus("featureSaveStatus", "Saving features...", "default");
   try {
     const payload = await fetchJson("/engram/v1/admin/config", { method: "PATCH", body: JSON.stringify(patch) });
-    renderRuntimeDashboard(payload);
+    runtimeState.dashboard = payload;
+    renderFeatureToggles(payload?.features);
     setStatus("featureSaveStatus", "Saved. Restart required for changes to take effect.", "ok");
   } catch (error) {
+    inputs.forEach((input, index) => { input.disabled = disabledStates[index]; });
     setStatus("featureSaveStatus", error.message || String(error), "error");
+  } finally {
+    if (button) button.disabled = false;
   }
 }
 

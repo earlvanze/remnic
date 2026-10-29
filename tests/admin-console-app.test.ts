@@ -247,8 +247,9 @@ test("admin console renders runtime dashboard controls", async () => {
 test("feature save sends only changed writable settings", async () => {
   const list = new FakeElement();
   const status = new FakeElement();
+  const runtimeInput = new FakeElement();
   const { renderRuntimeDashboard, getContext } = await loadAdminConsoleContext("25", {
-    featureToggleList: list, featureSaveStatus: status,
+    featureToggleList: list, featureSaveStatus: status, localLlmUrlInput: runtimeInput,
   });
   const payload = {
     config: { writable: true, values: {} },
@@ -259,6 +260,7 @@ test("feature save sends only changed writable settings", async () => {
   };
   renderRuntimeDashboard(payload);
   list.children[0].children[0].children[1].checked = false;
+  runtimeInput.value = "unsaved edit";
   const context = getContext();
   vm.runInContext(`globalThis.savedPatch = null; fetchJson = async (_url, options) => {
     globalThis.savedPatch = JSON.parse(options.body); return ${JSON.stringify(payload)};
@@ -266,6 +268,7 @@ test("feature save sends only changed writable settings", async () => {
   await vm.runInContext("saveFeatures()", context);
   assert.deepEqual(JSON.parse(JSON.stringify(context.savedPatch)), { qmdEnabled: false });
   assert.match(status.textContent, /Saved/);
+  assert.equal(runtimeInput.value, "unsaved edit");
 });
 
 test("admin console collects runtime config patch from model and feature controls", async () => {
