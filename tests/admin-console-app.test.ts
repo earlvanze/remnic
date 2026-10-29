@@ -15,7 +15,8 @@ class FakeElement {
   style: Record<string, string> = {};
   children: FakeElement[] = [];
 
-  addEventListener(): void {}
+  listeners: Record<string, () => void> = {};
+  addEventListener(name: string, callback: () => void): void { this.listeners[name] = callback; }
   setAttribute(): void {}
   appendChild(child: FakeElement): void {
     this.children.push(child);
@@ -154,6 +155,26 @@ async function loadAdminConsoleContext(pageSizeValue: string, extraElements: Rec
     getContext: () => context,
   };
 }
+
+test("entity explorer opens the stored identifier and reports lookup failures", async () => {
+  const list = new FakeElement();
+  const detail = new FakeElement();
+  const status = new FakeElement();
+  const { getContext } = await loadAdminConsoleContext("25", { entityList: list, entityDetail: detail, entityStatus: status });
+  const context = getContext();
+  vm.runInContext(`globalThis.requestedPath = ""; fetchJson = async (url) => {
+    requestedPath = url;
+    return { entity: { name: "Alex" } };
+  }; renderEntityList([{ id: "person-alex", name: "Alex", aliases: [] }]);`, context);
+  list.children[0]!.children.at(-1)!.listeners.click!();
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(vm.runInContext("requestedPath", context), "/engram/v1/entities/person-alex");
+  assert.match(detail.textContent, /Alex/);
+  vm.runInContext(`fetchJson = async () => { throw new Error("Not found"); };`, context);
+  await vm.runInContext(`loadEntityDetail("missing")`, context);
+  assert.match(status.textContent, /Not found/);
+  assert.match(detail.textContent, /Could not load/);
+});
 
 test("admin console pagination step reads the current page size before advancing", async () => {
   const { browserState, stepMemoryPage } = await loadAdminConsoleContext("10");

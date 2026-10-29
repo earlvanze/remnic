@@ -557,7 +557,7 @@ function renderEntityList(entities) {
     button.className = "entity-open-button";
     button.dataset.entityName = entity.name;
     button.textContent = "Open Entity";
-    button.addEventListener("click", () => void loadEntityDetail(entity.name));
+    button.addEventListener("click", () => void loadEntityDetail(entity.id || entity.name));
     article.appendChild(button);
 
     list.appendChild(article);
@@ -784,8 +784,15 @@ async function loadEntities() {
 
 async function loadEntityDetail(name) {
   if (!name) return;
-  const response = await fetchJson(`/engram/v1/entities/${encodeURIComponent(name)}`);
-  $("entityDetail").textContent = JSON.stringify(response.entity, null, 2);
+  setStatus("entityStatus", "Loading entity...");
+  try {
+    const response = await fetchJson(`/engram/v1/entities/${encodeURIComponent(name)}`);
+    $("entityDetail").textContent = JSON.stringify(response.entity, null, 2);
+    setStatus("entityStatus", "Entity loaded.", "ok");
+  } catch (error) {
+    $("entityDetail").textContent = "Could not load entity details.";
+    setStatus("entityStatus", `Could not load entity: ${error.message}`, "error");
+  }
 }
 
 async function loadQuality() {
