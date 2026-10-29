@@ -288,6 +288,9 @@
       .toggle-row input[type="checkbox"] {
         width: auto;
       }
+      .feature-info { position: relative; flex: none; }
+      .feature-info summary { cursor: pointer; list-style: none; border: 1px solid var(--line); border-radius: 50%; width: 24px; height: 24px; text-align: center; font-weight: bold; }
+      .feature-info p { position: absolute; z-index: 5; right: 0; width: min(260px, 75vw); padding: 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface-strong); box-shadow: var(--shadow); }
       /* ── Memory Graph pane ─────────────────────────────────── */
       .graph-wrap {
         position: relative;
@@ -880,6 +883,8 @@
       <section class="card" style="margin-top: 16px;">
         <h2>Optional Features</h2>
         <div class="toggle-list" id="featureToggleList"></div>
+        <div class="toolbar"><button class="accent" id="saveFeaturesButton">Save Features</button></div>
+        <div class="status" id="featureSaveStatus" aria-live="polite">Changes require a restart to take effect.</div>
       </section>
 
       <div class="grid">

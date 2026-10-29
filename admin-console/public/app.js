@@ -180,6 +180,24 @@ function selectedDefaultModelOption(select) {
   return Array.from(options).find((option) => option.value === select.value) || null;
 }
 
+const featureDescriptions = {
+  localLlmEnabled: "Use the configured local language model for memory processing.",
+  localLlmFastEnabled: "Use a separate fast local model tier for supported tasks.",
+  qmdEnabled: "Use QMD to search the memory index.",
+  embeddingFallbackEnabled: "Use embeddings as a fallback for memory retrieval.",
+  hostEmbeddingProviderEnabled: "Use the host-provided embedding service.",
+  namespacesEnabled: "Separate memories into namespaces for scoped access and retrieval.",
+  recallPlannerEnabled: "Plan recall queries to improve retrieval of relevant memories.",
+  recallPlannerLlmEnabled: "Use a language model when planning recall queries.",
+  citationsEnabled: "Include source references with supported memory results.",
+  citationsAutoDetect: "Automatically detect citations in supported content.",
+  queryExpansionEnabled: "Expand search queries with related terms.",
+  rerankEnabled: "Reorder retrieved results by relevance.",
+  feedbackEnabled: "Enable feedback for memory retrieval results.",
+  memoryExtensionsEnabled: "Enable configured memory extensions.",
+  enrichmentEnabled: "Enrich memories with entity information."
+};
+
 function renderFeatureToggles(features) {
   const list = $("featureToggleList");
   clearChildren(list);
@@ -198,10 +216,21 @@ function renderFeatureToggles(features) {
     const input = document.createElement("input");
     input.type = "checkbox";
     input.checked = feature.enabled === true;
-    input.disabled = feature.writable === false;
+    input.disabled = feature.writable === false || runtimeState.dashboard?.config?.writable === false;
     input.dataset.configKey = feature.key;
     label.appendChild(input);
     row.appendChild(label);
+    const details = document.createElement("details");
+    details.className = "feature-info";
+    const summary = document.createElement("summary");
+    summary.textContent = "i";
+    summary.setAttribute("aria-label", `About ${feature.label || feature.key}`);
+    const description = document.createElement("p");
+    description.textContent = feature.description || featureDescriptions[feature.key] || "No description available.";
+    summary.title = description.textContent;
+    details.appendChild(summary);
+    details.appendChild(description);
+    row.appendChild(details);
     list.appendChild(row);
   });
 }
@@ -266,6 +295,26 @@ function collectRuntimePatch() {
     patch[input.dataset.configKey] = input.checked === true;
   });
   return patch;
+}
+
+async function saveFeatures() {
+  const patch = {};
+  document.querySelectorAll("#featureToggleList input[data-config-key]").forEach((input) => {
+    const original = runtimeState.dashboard?.features?.find((feature) => feature.key === input.dataset.configKey);
+    if (!input.disabled && original && input.checked !== original.enabled) patch[input.dataset.configKey] = input.checked;
+  });
+  if (Object.keys(patch).length === 0) {
+    setStatus("featureSaveStatus", "No feature changes to save.", "default");
+    return;
+  }
+  setStatus("featureSaveStatus", "Saving features...", "default");
+  try {
+    const payload = await fetchJson("/engram/v1/admin/config", { method: "PATCH", body: JSON.stringify(patch) });
+    renderRuntimeDashboard(payload);
+    setStatus("featureSaveStatus", "Saved. Restart required for changes to take effect.", "ok");
+  } catch (error) {
+    setStatus("featureSaveStatus", error.message || String(error), "error");
+  }
 }
 
 async function saveRuntimeConfig() {
@@ -2650,6 +2699,7 @@ function bootstrap() {
     if (e.key === "Enter") void runGraphSearch();
   });
   $("refreshRuntimeButton")?.addEventListener("click", () => void loadAdminDashboard());
+  $("saveFeaturesButton")?.addEventListener("click", () => void saveFeatures());
   $("saveRuntimeConfigButton")?.addEventListener("click", () => void saveRuntimeConfig());
   initReviewDeck();
   initTimelinePane();

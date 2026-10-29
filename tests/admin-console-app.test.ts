@@ -16,6 +16,7 @@ class FakeElement {
   children: FakeElement[] = [];
 
   addEventListener(): void {}
+  setAttribute(): void {}
   appendChild(child: FakeElement): void {
     this.children.push(child);
   }
@@ -238,8 +239,33 @@ test("admin console renders runtime dashboard controls", async () => {
 
   assert.equal(defaultModelSelect.value, "openai\tgpt-4.1-mini");
   assert.equal(featureToggleList.children.length, 1);
+  assert.match(featureToggleList.children[0].children[1].children[1].textContent, /QMD/);
   assert.match(runtimeStatus.textContent, /Runtime loaded/);
   assert.match(runtimeStatus.textContent, /Config writable/);
+});
+
+test("feature save sends only changed writable settings", async () => {
+  const list = new FakeElement();
+  const status = new FakeElement();
+  const { renderRuntimeDashboard, getContext } = await loadAdminConsoleContext("25", {
+    featureToggleList: list, featureSaveStatus: status,
+  });
+  const payload = {
+    config: { writable: true, values: {} },
+    features: [
+      { key: "qmdEnabled", label: "QMD Search", enabled: true, writable: true },
+      { key: "rerankEnabled", label: "Rerank", enabled: false, writable: true },
+    ],
+  };
+  renderRuntimeDashboard(payload);
+  list.children[0].children[0].children[1].checked = false;
+  const context = getContext();
+  vm.runInContext(`globalThis.savedPatch = null; fetchJson = async (_url, options) => {
+    globalThis.savedPatch = JSON.parse(options.body); return ${JSON.stringify(payload)};
+  }`, context);
+  await vm.runInContext("saveFeatures()", context);
+  assert.deepEqual(JSON.parse(JSON.stringify(context.savedPatch)), { qmdEnabled: false });
+  assert.match(status.textContent, /Saved/);
 });
 
 test("admin console collects runtime config patch from model and feature controls", async () => {
