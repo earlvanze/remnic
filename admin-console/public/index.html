@@ -295,7 +295,11 @@
       }
       .feature-info { position: relative; flex: none; }
       .feature-info summary { cursor: pointer; list-style: none; border: 1px solid var(--line); border-radius: 50%; width: 24px; height: 24px; text-align: center; font-weight: bold; }
-      .feature-info p { position: absolute; z-index: 5; right: 0; width: min(260px, 75vw); padding: 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface-strong); box-shadow: var(--shadow); }
+      .feature-info p,
+      .feature-info:not([open]) summary:hover::after,
+      .feature-info:not([open]) summary:focus-visible::after { position: absolute; z-index: 5; top: 100%; right: 0; width: min(260px, 75vw); margin: 4px 0 0; padding: 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface-strong); box-shadow: var(--shadow); color: var(--ink); text-align: left; font-weight: normal; }
+      .feature-info:not([open]) summary:hover::after,
+      .feature-info:not([open]) summary:focus-visible::after { content: attr(data-description); }
       /* ── Memory Graph pane ─────────────────────────────────── */
       .graph-wrap {
         position: relative;
@@ -1270,6 +1274,6 @@
     </div>
     <script src="review-deck.js"></script>
     <script src="timeline-pane.js"></script>
-    <script src="app.js"></script>
+    <script src="app.js?v=feature-info-2"></script>
   </body>
 </html>

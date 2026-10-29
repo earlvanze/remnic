@@ -227,7 +227,7 @@ function renderFeatureToggles(features) {
     summary.setAttribute("aria-label", `About ${feature.label || feature.key}`);
     const description = document.createElement("p");
     description.textContent = feature.description || featureDescriptions[feature.key] || "No description available.";
-    summary.title = description.textContent;
+    summary.dataset.description = description.textContent;
     details.appendChild(summary);
     details.appendChild(description);
     row.appendChild(details);
