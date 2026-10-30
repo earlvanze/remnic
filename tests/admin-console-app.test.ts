@@ -334,6 +334,50 @@ test("a late failure for an older entity lookup does not replace the newer entit
   assert.doesNotMatch(status.textContent, /late failure/);
 });
 
+test("a late answer for an older entity lookup does not replace the newer entity (review of #3263)", async () => {
+  const detail = new FakeElement();
+  const status = new FakeElement();
+  const { getContext } = await loadAdminConsoleContext("25", { entityDetail: detail, entityStatus: status, entityList: new FakeElement() });
+  const context = getContext();
+  vm.runInContext(`globalThis.resolveA = null; fetchJson = (url) => url.endsWith("/a")
+    ? new Promise((resolve) => { globalThis.resolveA = resolve; })
+    : Promise.resolve({ entity: { name: "B" } });`, context);
+  const first = vm.runInContext('loadEntityDetail("a")', context);
+  await vm.runInContext('loadEntityDetail("b")', context);
+  assert.match(detail.textContent, /"B"/);
+  vm.runInContext('globalThis.resolveA({ entity: { name: "A" } })', context);
+  await first;
+  assert.match(detail.textContent, /"B"/, "the newer entity stays on screen");
+  assert.doesNotMatch(detail.textContent, /"A"/);
+});
+
+test("a failed feature save puts the toggles and the button back as they were (review of #3263)", async () => {
+  const list = new FakeElement();
+  const status = new FakeElement();
+  const button = new FakeElement();
+  const { renderRuntimeDashboard, getContext } = await loadAdminConsoleContext("25", {
+    featureToggleList: list, featureSaveStatus: status, saveFeaturesButton: button,
+  });
+  renderRuntimeDashboard({
+    config: { writable: true, values: {} },
+    features: [
+      { key: "qmdEnabled", label: "QMD Search", enabled: true, writable: true },
+      { key: "rerankEnabled", label: "Rerank", enabled: false, writable: false },
+    ],
+  });
+  const toggle = (row: number) => list.children[row].children[0].children[1];
+  toggle(0).checked = false;
+  assert.equal(toggle(0).disabled, false);
+  assert.equal(toggle(1).disabled, true, "setup: the read-only toggle starts disabled");
+  const context = getContext();
+  vm.runInContext(`fetchJson = async () => { throw new Error("server said no"); };`, context);
+  await vm.runInContext("saveFeatures()", context);
+  assert.equal(toggle(0).disabled, false, "the writable toggle is usable again");
+  assert.equal(toggle(1).disabled, true, "the read-only toggle stays read-only");
+  assert.equal(button.disabled, false);
+  assert.match(status.textContent, /server said no/);
+});
+
 test("admin console collects runtime config patch from model and feature controls", async () => {
   const modelSourceSelect = Object.assign(new FakeElement(), { value: "plugin" });
   const defaultModelSelect = Object.assign(new FakeElement(), { value: "ollama\tllama3.2" });
