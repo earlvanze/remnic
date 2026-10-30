@@ -292,6 +292,48 @@ test("feature save sends only changed writable settings", async () => {
   assert.equal(runtimeInput.value, "unsaved edit");
 });
 
+test("feature save refreshes the status lists and leaves the toggles usable (review of #3263)", async () => {
+  const list = new FakeElement();
+  const status = new FakeElement();
+  const button = new FakeElement();
+  const harnessList = new FakeElement();
+  const { renderRuntimeDashboard, getContext } = await loadAdminConsoleContext("25", {
+    featureToggleList: list, featureSaveStatus: status, saveFeaturesButton: button, harnessList, providerList: new FakeElement(), modelList: new FakeElement(),
+  });
+  const before = {
+    config: { writable: true, values: {} },
+    features: [{ key: "qmdEnabled", label: "QMD Search", enabled: true, writable: true }],
+    harnesses: [{ id: "codex", label: "Codex", status: "ok" }],
+  };
+  renderRuntimeDashboard(before);
+  const firstRows = harnessList.children.length;
+  const after = { ...before, features: [{ ...before.features[0], enabled: false }], harnesses: [...before.harnesses, { id: "claude", label: "Claude", status: "ok" }] };
+  list.children[0].children[0].children[1].checked = false;
+  const context = getContext();
+  vm.runInContext(`fetchJson = async () => (${JSON.stringify(after)});`, context);
+  await vm.runInContext("saveFeatures()", context);
+  assert.ok(harnessList.children.length > firstRows, "the harness list shows what the save response says");
+  assert.equal(list.children[0].children[0].children[1].disabled, false, "the re-rendered toggle can be edited again");
+  assert.equal(button.disabled, false);
+});
+
+test("a late failure for an older entity lookup does not replace the newer entity (review of #3263)", async () => {
+  const detail = new FakeElement();
+  const status = new FakeElement();
+  const { getContext } = await loadAdminConsoleContext("25", { entityDetail: detail, entityStatus: status, entityList: new FakeElement() });
+  const context = getContext();
+  vm.runInContext(`globalThis.rejectA = null; fetchJson = (url) => url.endsWith("/a")
+    ? new Promise((_resolve, reject) => { globalThis.rejectA = reject; })
+    : Promise.resolve({ entity: { name: "B" } });`, context);
+  const first = vm.runInContext('loadEntityDetail("a")', context);
+  await vm.runInContext('loadEntityDetail("b")', context);
+  assert.match(detail.textContent, /"B"/);
+  vm.runInContext('globalThis.rejectA(new Error("late failure"))', context);
+  await first;
+  assert.match(detail.textContent, /"B"/, "the newer entity stays on screen");
+  assert.doesNotMatch(status.textContent, /late failure/);
+});
+
 test("admin console collects runtime config patch from model and feature controls", async () => {
   const modelSourceSelect = Object.assign(new FakeElement(), { value: "plugin" });
   const defaultModelSelect = Object.assign(new FakeElement(), { value: "ollama\tllama3.2" });

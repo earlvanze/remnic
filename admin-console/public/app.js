@@ -235,6 +235,13 @@ function renderFeatureToggles(features) {
   });
 }
 
+/** The harness, provider and model lists only: no input the operator may be editing. */
+function renderStatusLists(payload) {
+  renderCompactStatusList($("harnessList"), payload?.harnesses, "No harnesses detected.");
+  renderCompactStatusList($("providerList"), payload?.providers, "No providers detected.");
+  renderCompactStatusList($("modelList"), payload?.models, "No models detected.");
+}
+
 function renderRuntimeDashboard(payload) {
   runtimeState.dashboard = payload;
   const values = payload?.config?.values || {};
@@ -245,9 +252,7 @@ function renderRuntimeDashboard(payload) {
   const sourceSelect = $("modelSourceSelect");
   if (sourceSelect && values.modelSource) sourceSelect.value = String(values.modelSource);
   renderDefaultModelSelect(payload?.models, values);
-  renderCompactStatusList($("harnessList"), payload?.harnesses, "No harnesses detected.");
-  renderCompactStatusList($("providerList"), payload?.providers, "No providers detected.");
-  renderCompactStatusList($("modelList"), payload?.models, "No models detected.");
+  renderStatusLists(payload);
   renderFeatureToggles(payload?.features);
   const state = payload?.config?.restartRequired ? "Saved changes require restart." : "Runtime loaded.";
   setStatus("runtimeStatus", `${state} ${payload?.config?.writable ? "Config writable." : "Config read-only."}`, payload?.config?.writable ? "ok" : "error");
@@ -316,6 +321,7 @@ async function saveFeatures() {
   try {
     const payload = await fetchJson("/engram/v1/admin/config", { method: "PATCH", body: JSON.stringify(patch) });
     runtimeState.dashboard = payload;
+    renderStatusLists(payload);
     renderFeatureToggles(payload?.features);
     setStatus("featureSaveStatus", "Saved. Restart required for changes to take effect.", "ok");
   } catch (error) {
@@ -782,14 +788,19 @@ async function loadEntities() {
   setStatus("entityStatus", `Loaded ${response.count} of ${response.total} entities.`, "ok");
 }
 
+let entityDetailRequest = 0;
+
 async function loadEntityDetail(name) {
   if (!name) return;
+  const request = ++entityDetailRequest; // only the newest lookup may write the pane, answer or failure
   setStatus("entityStatus", "Loading entity...");
   try {
     const response = await fetchJson(`/engram/v1/entities/${encodeURIComponent(name)}`);
+    if (request !== entityDetailRequest) return;
     $("entityDetail").textContent = JSON.stringify(response.entity, null, 2);
     setStatus("entityStatus", "Entity loaded.", "ok");
   } catch (error) {
+    if (request !== entityDetailRequest) return;
     $("entityDetail").textContent = "Could not load entity details.";
     setStatus("entityStatus", `Could not load entity: ${error.message}`, "error");
   }
